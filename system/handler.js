@@ -1,5 +1,6 @@
 const config = require("../config.json")
 const axios = require("axios")
+const fs = require("fs")
 
 async function handleMessage(sock, m) {
 
@@ -31,6 +32,69 @@ const bans = banData.data
 
 if (bans.includes(sender)) return
 
+const settingsPath =
+"./database/settings.json"
+
+if (!fs.existsSync(settingsPath)) {
+fs.writeFileSync(settingsPath, "{}")
+}
+
+const settings =
+JSON.parse(
+fs.readFileSync(settingsPath)
+)
+
+const group =
+m.key.remoteJid
+
+if (!settings[group]) {
+
+settings[group] = {
+welcome: false,
+antilink: false,
+warn: false,
+warnCount: {}
+}
+
+fs.writeFileSync(
+settingsPath,
+JSON.stringify(settings, null, 2)
+)
+
+}
+
+if (
+settings[group].antilink &&
+body.includes(
+"https://chat.whatsapp.com"
+)
+) {
+
+await sock.sendMessage(
+group,
+{
+text:
+"GROUP LINK NOT ALLOWED"
+},
+{
+quoted: m
+}
+)
+
+try {
+
+await sock.groupParticipantsUpdate(
+group,
+[sender],
+"remove"
+)
+
+} catch {}
+
+return
+
+}
+
 let prefix = config.prefix
 
 let isCmd = body.startsWith(prefix)
@@ -47,7 +111,10 @@ command = body
 .shift()
 .toLowerCase()
 
-args = body.trim().split(/ +/).slice(1)
+args = body
+.trim()
+.split(/ +/)
+.slice(1)
 
 } else {
 
@@ -57,15 +124,20 @@ command = body
 .shift()
 .toLowerCase()
 
-args = body.trim().split(/ +/).slice(1)
+args = body
+.trim()
+.split(/ +/)
+.slice(1)
 
 }
 
-const plugin = global.plugins[command]
+const plugin =
+global.plugins[command]
 
 if (!plugin) return
 
-const isAdmin = admins.includes(
+const isAdmin =
+admins.includes(
 sender.split("@")[0]
 )
 
@@ -77,7 +149,8 @@ args,
 body,
 sender,
 isAdmin,
-config
+config,
+settings
 }
 )
 
