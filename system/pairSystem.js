@@ -70,6 +70,42 @@ number,
 sock
 )
 
+/*
+========================================
+WAIT CONNECTION
+========================================
+*/
+
+await new Promise(resolve => {
+
+sock.ev.on(
+"connection.update",
+(update)=>{
+
+const {
+connection
+} = update
+
+if(
+connection ===
+"connecting"
+){
+
+resolve()
+
+}
+
+}
+)
+
+})
+
+/*
+========================================
+PAIR CODE
+========================================
+*/
+
 let code = null
 
 if(
