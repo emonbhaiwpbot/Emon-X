@@ -1,162 +1,637 @@
-const config = require("../config.json")
-const axios = require("axios")
+/*
+========================================
+€м𝐨Ⓝ HANDLER.JS
+========================================
+*/
+
 const fs = require("fs")
+const path = require("path")
 
-async function handleMessage(sock, m) {
+const config =
+require("../config")
 
-try {
+/*
+========================================
+DATABASE
+========================================
+*/
+
+const DB_FOLDER =
+"./plugins/emon"
+
+if(!fs.existsSync(DB_FOLDER)){
+
+fs.mkdirSync(
+DB_FOLDER,
+{
+recursive:true
+}
+)
+
+}
+
+const dbFiles = [
+
+"groups.json",
+"users.json",
+"warns.json",
+"settings.json",
+"premium.json",
+"ai.json",
+"ban.json"
+
+]
+
+for(let file of dbFiles){
+
+const fullPath =
+`${DB_FOLDER}/${file}`
+
+if(!fs.existsSync(fullPath)){
+
+if(file === "ban.json"){
+
+fs.writeFileSync(
+fullPath,
+JSON.stringify([],null,2)
+)
+
+}else{
+
+fs.writeFileSync(
+fullPath,
+JSON.stringify({},null,2)
+)
+
+}
+
+}
+
+}
+
+/*
+========================================
+JSON SYSTEM
+========================================
+*/
+
+function loadJSON(file){
+
+if(!fs.existsSync(file)){
+
+fs.writeFileSync(
+file,
+JSON.stringify({},null,2)
+)
+
+}
+
+return JSON.parse(
+fs.readFileSync(file)
+)
+
+}
+
+function saveJSON(file,data){
+
+fs.writeFileSync(
+file,
+JSON.stringify(data,null,2)
+)
+
+}
+
+/*
+========================================
+HANDLER
+========================================
+*/
+
+async function handleMessage(
+sock,
+m
+){
+
+try{
 
 const body =
 m.message?.conversation ||
-m.message?.extendedTextMessage?.text ||
-m.message?.imageMessage?.caption ||
-m.message?.videoMessage?.caption ||
+
+m.message?.extendedTextMessage
+?.text ||
+
+m.message?.imageMessage
+?.caption ||
+
+m.message?.videoMessage
+?.caption ||
+
 ""
 
-if (!body) return
+const from =
+m.key.remoteJid
+
+const isGroup =
+from.endsWith("@g.us")
 
 const sender =
 m.key.participant ||
-m.key.remoteJid
+from
 
-const adminData = await axios.get(
-"https://raw.githubusercontent.com/emonbhaiwpbot/Wp-Control/main/admin.json"
+const senderNumber =
+sender.split("@")[0]
+
+/*
+========================================
+PREFIX
+========================================
+*/
+
+const prefix =
+config.prefix.find(v =>
+body.startsWith(v)
 )
 
-const banData = await axios.get(
-"https://raw.githubusercontent.com/emonbhaiwpbot/Wp-Control/main/ban.json"
+const isCmd =
+prefix !== undefined
+
+const command =
+isCmd
+? body
+.slice(prefix.length)
+.trim()
+.split(" ")[0]
+.toLowerCase()
+: body
+.trim()
+.split(" ")[0]
+.toLowerCase()
+
+const args =
+body
+.trim()
+.split(" ")
+.slice(1)
+
+const cmd =
+global.plugins[command]
+
+/*
+========================================
+GROUP INFO
+========================================
+*/
+
+let isGroupAdmin =
+false
+
+let isBotAdmin =
+false
+
+let groupAdmins =
+[]
+
+if(isGroup){
+
+try{
+
+const metadata =
+await sock.groupMetadata(
+from
 )
 
-const admins = adminData.data
-const bans = banData.data
+groupAdmins =
+metadata.participants
+.filter(v => v.admin)
+.map(v => v.id)
 
-if (bans.includes(sender)) return
+isGroupAdmin =
+groupAdmins.includes(
+sender
+)
+
+const botIds = [
+
+sock.user.id,
+
+sock.user.id
+.split(":")[0] +
+"@s.whatsapp.net"
+
+]
+
+isBotAdmin =
+groupAdmins.some(id =>
+botIds.includes(id)
+)
+
+}catch(err){
+
+console.log(err)
+
+}
+
+}
+
+/*
+========================================
+OWNER & ADMIN
+========================================
+*/
+
+const isOwner =
+senderNumber ===
+config.owner
+
+const isAdmin =
+
+config.admins.includes(
+senderNumber
+)
+
+||
+
+global.GLOBAL_ADMIN
+.includes(senderNumber)
+
+/*
+========================================
+GLOBAL BAN
+========================================
+*/
+
+if(
+global.GLOBAL_BAN
+.includes(senderNumber)
+){
+
+return sock.sendMessage(
+from,
+{
+text:
+"🚫 You Are Globally Banned"
+},
+{
+quoted:m
+}
+)
+
+}
+
+/*
+========================================
+LOCAL BAN
+========================================
+*/
+
+const localBanPath =
+`${DB_FOLDER}/ban.json`
+
+const localBans =
+loadJSON(localBanPath)
+
+if(
+Array.isArray(localBans) &&
+localBans.includes(senderNumber)
+){
+
+return sock.sendMessage(
+from,
+{
+text:
+"🚫 You Are Banned"
+},
+{
+quoted:m
+}
+)
+
+}
+
+/*
+========================================
+ANTI LINK
+========================================
+*/
 
 const settingsPath =
-"./database/settings.json"
-
-if (!fs.existsSync(settingsPath)) {
-fs.writeFileSync(settingsPath, "{}")
-}
+`${DB_FOLDER}/settings.json`
 
 const settings =
-JSON.parse(
-fs.readFileSync(settingsPath)
-)
+loadJSON(settingsPath)
 
-const group =
-m.key.remoteJid
+if(
+!settings[from]
+){
 
-if (!settings[group]) {
+settings[from] = {
 
-settings[group] = {
-welcome: false,
-antilink: false,
-warn: false,
-warnCount: {}
+antilink:false,
+welcome:false
+
 }
 
-fs.writeFileSync(
+saveJSON(
 settingsPath,
-JSON.stringify(settings, null, 2)
+settings
 )
 
 }
 
-if (
-settings[group].antilink &&
+if(
+settings[from].antilink &&
 body.includes(
 "https://chat.whatsapp.com"
 )
-) {
+){
+
+try{
 
 await sock.sendMessage(
-group,
+from,
 {
 text:
-"GROUP LINK NOT ALLOWED"
+"❌ Group Link Not Allowed"
 },
 {
-quoted: m
+quoted:m
 }
 )
 
-try {
+if(isBotAdmin){
 
 await sock.groupParticipantsUpdate(
-group,
+from,
 [sender],
 "remove"
 )
 
-} catch {}
+}
+
+}catch(err){
+
+console.log(err)
+
+}
 
 return
 
 }
 
-let prefix = config.prefix
+/*
+========================================
+FAKE TYPING
+========================================
+*/
 
-let isCmd = body.startsWith(prefix)
+if(config.fakeTyping){
 
-let command
-let args
+try{
 
-if (isCmd) {
+await sock.sendPresenceUpdate(
+"composing",
+from
+)
 
-command = body
-.slice(prefix.length)
-.trim()
-.split(/ +/)
-.shift()
-.toLowerCase()
-
-args = body
-.trim()
-.split(/ +/)
-.slice(1)
-
-} else {
-
-command = body
-.trim()
-.split(/ +/)
-.shift()
-.toLowerCase()
-
-args = body
-.trim()
-.split(/ +/)
-.slice(1)
+}catch{}
 
 }
+
+/*
+========================================
+PLUGIN EVENTS
+========================================
+*/
+
+for(let name in global.plugins){
 
 const plugin =
-global.plugins[command]
+global.plugins[name]
 
-if (!plugin) return
+if(plugin.event){
 
-const isAdmin =
-admins.includes(
-sender.split("@")[0]
-)
+try{
 
-await plugin.execute(
+await plugin.event({
+
 sock,
 m,
-args,
-{
+
 body,
+from,
 sender,
+
+args,
+command,
+isCmd,
+
+isGroup,
+isOwner,
 isAdmin,
+
+isGroupAdmin,
+isBotAdmin,
+
 config,
-settings
+
+loadJSON,
+saveJSON,
+
+DB_FOLDER,
+
+GLOBAL_ADMIN:
+global.GLOBAL_ADMIN,
+
+GLOBAL_BAN:
+global.GLOBAL_BAN
+
+})
+
+}catch(err){
+
+console.log(err)
+
+}
+
+}
+
+}
+
+/*
+========================================
+COMMAND NOT FOUND
+========================================
+*/
+
+if(!cmd)
+return
+
+/*
+========================================
+GROUP ONLY
+========================================
+*/
+
+if(
+cmd.config.group &&
+!isGroup
+){
+
+return sock.sendMessage(
+from,
+{
+text:
+"❌ Group Only Command"
+},
+{
+quoted:m
 }
 )
 
-} catch (e) {
+}
 
-console.log(e)
+/*
+========================================
+BOT ADMIN
+========================================
+*/
+
+if(
+cmd.config.botAdmin &&
+!isBotAdmin
+){
+
+return sock.sendMessage(
+from,
+{
+text:
+"❌ Bot Must Be Admin"
+},
+{
+quoted:m
+}
+)
+
+}
+
+/*
+========================================
+GROUP ADMIN
+========================================
+*/
+
+if(
+cmd.config.admin &&
+!isGroupAdmin
+){
+
+return sock.sendMessage(
+from,
+{
+text:
+"❌ Group Admin Only"
+},
+{
+quoted:m
+}
+)
+
+}
+
+/*
+========================================
+OWNER ONLY
+========================================
+*/
+
+if(
+cmd.config.owner
+){
+
+if(
+!isOwner &&
+!isAdmin
+){
+
+return sock.sendMessage(
+from,
+{
+text:
+"❌ Owner/Admin Only"
+},
+{
+quoted:m
+}
+)
+
+}
+
+}
+
+/*
+========================================
+LOG
+========================================
+*/
+
+if(isCmd){
+
+console.log(`
+╔════════════════════════════╗
+║         €м𝐨Ⓝ LOG           ║
+╠════════════════════════════╣
+║ 👤 User : ${senderNumber}
+║ 💬 Type : ${isGroup ? "GROUP" : "PRIVATE"}
+║ ⚡ Cmd  : ${command}
+╚════════════════════════════╝
+`)
+
+}
+
+/*
+========================================
+RUN COMMAND
+========================================
+*/
+
+await cmd.run({
+
+sock,
+m,
+
+body,
+from,
+sender,
+
+args,
+command,
+isCmd,
+
+isGroup,
+isOwner,
+isAdmin,
+
+isGroupAdmin,
+isBotAdmin,
+
+config,
+
+loadJSON,
+saveJSON,
+
+DB_FOLDER,
+
+GLOBAL_ADMIN:
+global.GLOBAL_ADMIN,
+
+GLOBAL_BAN:
+global.GLOBAL_BAN
+
+})
+
+}catch(err){
+
+console.log(err)
 
 }
 
