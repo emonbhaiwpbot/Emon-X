@@ -36,6 +36,10 @@ loadPlugins
 } = require("./system/loader")
 
 const {
+loadSessions
+} = require("./system/multiSession")
+
+const {
 watchPlugins
 } = require("./system/watcher")
 
