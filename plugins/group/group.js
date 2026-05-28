@@ -5,6 +5,20 @@ async execute(sock, m, args) {
 
 const action = args[0]
 
+if (!action) {
+
+return await sock.sendMessage(
+m.key.remoteJid,
+{
+text: "Use open or close"
+},
+{
+quoted: m
+}
+)
+
+}
+
 if (action === "open") {
 
 await sock.groupSettingUpdate(
@@ -12,11 +26,15 @@ m.key.remoteJid,
 "not_announcement"
 )
 
-await sock.sendMessage(m.key.remoteJid, {
+await sock.sendMessage(
+m.key.remoteJid,
+{
 text: "Group Opened"
-}, {
+},
+{
 quoted: m
-})
+}
+)
 
 }
 
@@ -27,11 +45,17 @@ m.key.remoteJid,
 "announcement"
 )
 
-await sock.sendMessage(m.key.remoteJid, {
+await sock.sendMessage(
+m.key.remoteJid,
+{
 text: "Group Closed"
-}, {
+},
+{
 quoted: m
-})
+}
+)
+
+}
 
 }
 }
