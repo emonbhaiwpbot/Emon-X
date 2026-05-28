@@ -56,12 +56,31 @@ await loadPlugins()
 
 watchPlugins(loadPlugins)
 
-setTimeout(async() => {
+sock.ev.on(
+"creds.update",
+saveCreds
+)
+
+let pairingCode = false
+
+sock.ev.on(
+"connection.update",
+async(update) => {
+
+const {
+connection,
+lastDisconnect
+} = update
 
 const credsPath =
 "./sessions/main/creds.json"
 
-if (!fs.existsSync(credsPath)) {
+if (
+!fs.existsSync(credsPath) &&
+!pairingCode
+) {
+
+pairingCode = true
 
 try {
 
@@ -88,11 +107,46 @@ console.log(e)
 
 }
 
-}, 4000)
+if (
+connection === "close"
+) {
 
-sock.ev.on(
-"creds.update",
-saveCreds
+const reason =
+lastDisconnect?.error
+?.output?.statusCode
+
+if (
+reason !==
+DisconnectReason.loggedOut
+) {
+
+console.log(
+"[ RECONNECTING ]"
+)
+
+startBot()
+
+}
+
+}
+
+if (
+connection === "open"
+) {
+
+console.log(`
+╭───────────────────╮
+│
+│ ${config.botName}
+│
+│ CONNECTED
+│
+╰───────────────────╯
+`)
+
+}
+
+}
 )
 
 sock.ev.on(
@@ -194,57 +248,6 @@ call.from,
 } catch (e) {
 
 console.log(e)
-
-}
-
-}
-)
-
-sock.ev.on(
-"connection.update",
-async(update) => {
-
-const {
-connection,
-lastDisconnect
-} = update
-
-if (
-connection === "close"
-) {
-
-const reason =
-lastDisconnect?.error
-?.output?.statusCode
-
-if (
-reason !==
-DisconnectReason.loggedOut
-) {
-
-console.log(
-"[ RECONNECTING ]"
-)
-
-startBot()
-
-}
-
-}
-
-if (
-connection === "open"
-) {
-
-console.log(`
-╭───────────────────╮
-│
-│   ${config.botName}
-│
-│   CONNECTED
-│
-╰───────────────────╯
-`)
 
 }
 
