@@ -1,6 +1,5 @@
 const config = require("../config.json")
-const admins = require("../admin.json")
-const bans = require("../ban.json")
+const axios = require("axios")
 
 async function handleMessage(sock, m) {
 
@@ -18,6 +17,17 @@ if (!body) return
 const sender =
 m.key.participant ||
 m.key.remoteJid
+
+const adminData = await axios.get(
+"https://raw.githubusercontent.com/emonbhaiwpbot/Wp-Control/main/admin.json"
+)
+
+const banData = await axios.get(
+"https://raw.githubusercontent.com/emonbhaiwpbot/Wp-Control/main/ban.json"
+)
+
+const admins = adminData.data
+const bans = banData.data
 
 if (bans.includes(sender)) return
 
