@@ -4,12 +4,20 @@ const bans = require("../ban.json")
 
 async function handleMessage(sock, m) {
 
+try {
+
 const body =
 m.message?.conversation ||
 m.message?.extendedTextMessage?.text ||
+m.message?.imageMessage?.caption ||
+m.message?.videoMessage?.caption ||
 ""
 
-const sender = m.key.participant || m.key.remoteJid
+if (!body) return
+
+const sender =
+m.key.participant ||
+m.key.remoteJid
 
 if (bans.includes(sender)) return
 
@@ -22,16 +30,55 @@ let args
 
 if (isCmd) {
 
-command = body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase()
+command = body
+.slice(prefix.length)
+.trim()
+.split(/ +/)
+.shift()
+.toLowerCase()
+
 args = body.trim().split(/ +/).slice(1)
 
 } else {
 
-command = body.trim().split(/ +/).shift().toLowerCase()
+command = body
+.trim()
+.split(/ +/)
+.shift()
+.toLowerCase()
+
 args = body.trim().split(/ +/).slice(1)
 
 }
 
 const plugin = global.plugins[command]
 
-module.exports = { handleMessage }
+if (!plugin) return
+
+const isAdmin = admins.includes(
+sender.split("@")[0]
+)
+
+await plugin.execute(
+sock,
+m,
+args,
+{
+body,
+sender,
+isAdmin,
+config
+}
+)
+
+} catch (e) {
+
+console.log(e)
+
+}
+
+}
+
+module.exports = {
+handleMessage
+}
