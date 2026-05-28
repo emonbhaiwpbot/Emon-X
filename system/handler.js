@@ -1,14 +1,30 @@
 /*
 ========================================
 €м𝐨Ⓝ HANDLER.JS
+MAIN ROUTER SYSTEM
 ========================================
 */
 
 const fs = require("fs")
-const path = require("path")
 
 const config =
 require("../config")
+
+const {
+permissionHandler
+} = require("./handler2")
+
+const {
+securityHandler
+} = require("./handler3")
+
+const {
+eventHandler
+} = require("./handler4")
+
+const {
+commandHandler
+} = require("./handler5")
 
 /*
 ========================================
@@ -103,7 +119,7 @@ JSON.stringify(data,null,2)
 
 /*
 ========================================
-HANDLER
+MAIN HANDLER
 ========================================
 */
 
@@ -127,6 +143,9 @@ m.message?.videoMessage
 ?.caption ||
 
 ""
+
+if(!body)
+return
 
 const from =
 m.key.remoteJid
@@ -178,241 +197,11 @@ global.plugins[command]
 
 /*
 ========================================
-GROUP INFO
+CTX
 ========================================
 */
 
-let isGroupAdmin =
-false
-
-let isBotAdmin =
-false
-
-let groupAdmins =
-[]
-
-if(isGroup){
-
-try{
-
-const metadata =
-await sock.groupMetadata(
-from
-)
-
-groupAdmins =
-metadata.participants
-.filter(v => v.admin)
-.map(v => v.id)
-
-isGroupAdmin =
-groupAdmins.includes(
-sender
-)
-
-const botIds = [
-
-sock.user.id,
-
-sock.user.id
-.split(":")[0] +
-"@s.whatsapp.net"
-
-]
-
-isBotAdmin =
-groupAdmins.some(id =>
-botIds.includes(id)
-)
-
-}catch(err){
-
-console.log(err)
-
-}
-
-}
-
-/*
-========================================
-OWNER & ADMIN
-========================================
-*/
-
-const isOwner =
-senderNumber ===
-config.owner
-
-const isAdmin =
-
-config.admins.includes(
-senderNumber
-)
-
-||
-
-global.GLOBAL_ADMIN
-.includes(senderNumber)
-
-/*
-========================================
-GLOBAL BAN
-========================================
-*/
-
-if(
-global.GLOBAL_BAN
-.includes(senderNumber)
-){
-
-return sock.sendMessage(
-from,
-{
-text:
-"🚫 You Are Globally Banned"
-},
-{
-quoted:m
-}
-)
-
-}
-
-/*
-========================================
-LOCAL BAN
-========================================
-*/
-
-const localBanPath =
-`${DB_FOLDER}/ban.json`
-
-const localBans =
-loadJSON(localBanPath)
-
-if(
-Array.isArray(localBans) &&
-localBans.includes(senderNumber)
-){
-
-return sock.sendMessage(
-from,
-{
-text:
-"🚫 You Are Banned"
-},
-{
-quoted:m
-}
-)
-
-}
-
-/*
-========================================
-ANTI LINK
-========================================
-*/
-
-const settingsPath =
-`${DB_FOLDER}/settings.json`
-
-const settings =
-loadJSON(settingsPath)
-
-if(
-!settings[from]
-){
-
-settings[from] = {
-
-antilink:false,
-welcome:false
-
-}
-
-saveJSON(
-settingsPath,
-settings
-)
-
-}
-
-if(
-settings[from].antilink &&
-body.includes(
-"https://chat.whatsapp.com"
-)
-){
-
-try{
-
-await sock.sendMessage(
-from,
-{
-text:
-"❌ Group Link Not Allowed"
-},
-{
-quoted:m
-}
-)
-
-if(isBotAdmin){
-
-await sock.groupParticipantsUpdate(
-from,
-[sender],
-"remove"
-)
-
-}
-
-}catch(err){
-
-console.log(err)
-
-}
-
-return
-
-}
-
-/*
-========================================
-FAKE TYPING
-========================================
-*/
-
-if(config.fakeTyping){
-
-try{
-
-await sock.sendPresenceUpdate(
-"composing",
-from
-)
-
-}catch{}
-
-}
-
-/*
-========================================
-PLUGIN EVENTS
-========================================
-*/
-
-for(let name in global.plugins){
-
-const plugin =
-global.plugins[name]
-
-if(plugin.event){
-
-try{
-
-await plugin.event({
+const ctx = {
 
 sock,
 m,
@@ -420,24 +209,22 @@ m,
 body,
 from,
 sender,
+senderNumber,
 
 args,
 command,
 isCmd,
 
 isGroup,
-isOwner,
-isAdmin,
-
-isGroupAdmin,
-isBotAdmin,
 
 config,
 
-loadJSON,
-saveJSON,
+cmd,
 
 DB_FOLDER,
+
+loadJSON,
+saveJSON,
 
 GLOBAL_ADMIN:
 global.GLOBAL_ADMIN,
@@ -445,189 +232,43 @@ global.GLOBAL_ADMIN,
 GLOBAL_BAN:
 global.GLOBAL_BAN
 
-})
-
-}catch(err){
-
-console.log(err)
-
-}
-
-}
-
 }
 
 /*
 ========================================
-COMMAND NOT FOUND
+PERMISSION HANDLER
 ========================================
 */
 
-if(!cmd)
+await permissionHandler(ctx)
+
+/*
+========================================
+SECURITY HANDLER
+========================================
+*/
+
+const stopSecurity =
+await securityHandler(ctx)
+
+if(stopSecurity)
 return
 
 /*
 ========================================
-GROUP ONLY
+EVENT HANDLER
 ========================================
 */
 
-if(
-cmd.config.group &&
-!isGroup
-){
-
-return sock.sendMessage(
-from,
-{
-text:
-"❌ Group Only Command"
-},
-{
-quoted:m
-}
-)
-
-}
+await eventHandler(ctx)
 
 /*
 ========================================
-BOT ADMIN
+COMMAND HANDLER
 ========================================
 */
 
-if(
-cmd.config.botAdmin &&
-!isBotAdmin
-){
-
-return sock.sendMessage(
-from,
-{
-text:
-"❌ Bot Must Be Admin"
-},
-{
-quoted:m
-}
-)
-
-}
-
-/*
-========================================
-GROUP ADMIN
-========================================
-*/
-
-if(
-cmd.config.admin &&
-!isGroupAdmin
-){
-
-return sock.sendMessage(
-from,
-{
-text:
-"❌ Group Admin Only"
-},
-{
-quoted:m
-}
-)
-
-}
-
-/*
-========================================
-OWNER ONLY
-========================================
-*/
-
-if(
-cmd.config.owner
-){
-
-if(
-!isOwner &&
-!isAdmin
-){
-
-return sock.sendMessage(
-from,
-{
-text:
-"❌ Owner/Admin Only"
-},
-{
-quoted:m
-}
-)
-
-}
-
-}
-
-/*
-========================================
-LOG
-========================================
-*/
-
-if(isCmd){
-
-console.log(`
-╔════════════════════════════╗
-║         €м𝐨Ⓝ LOG           ║
-╠════════════════════════════╣
-║ 👤 User : ${senderNumber}
-║ 💬 Type : ${isGroup ? "GROUP" : "PRIVATE"}
-║ ⚡ Cmd  : ${command}
-╚════════════════════════════╝
-`)
-
-}
-
-/*
-========================================
-RUN COMMAND
-========================================
-*/
-
-await cmd.run({
-
-sock,
-m,
-
-body,
-from,
-sender,
-
-args,
-command,
-isCmd,
-
-isGroup,
-isOwner,
-isAdmin,
-
-isGroupAdmin,
-isBotAdmin,
-
-config,
-
-loadJSON,
-saveJSON,
-
-DB_FOLDER,
-
-GLOBAL_ADMIN:
-global.GLOBAL_ADMIN,
-
-GLOBAL_BAN:
-global.GLOBAL_BAN
-
-})
+await commandHandler(ctx)
 
 }catch(err){
 
