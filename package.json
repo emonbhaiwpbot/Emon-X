@@ -26,6 +26,9 @@
     "similarity": "latest",
     "ffmpeg-static": "latest",
     "fluent-ffmpeg": "latest",
-    "mime-types": "latest"
+    "mime-types": "latest",
+    "chokidar": "latest",
+    "gradient-string": "latest",
+    "socket.io": "latest"
   }
 }
