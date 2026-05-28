@@ -1,0 +1,31 @@
+{
+  "name": "emon-bot",
+  "version": "2.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "latest",
+    "axios": "latest",
+    "chalk": "latest",
+    "express": "latest",
+    "fs-extra": "latest",
+    "lowdb": "latest",
+    "moment-timezone": "latest",
+    "node-cache": "latest",
+    "node-cron": "latest",
+    "pino": "latest",
+    "qrcode": "latest",
+    "chokidar": "latest",
+    "gradient-string": "latest",
+    "socket.io": "latest",
+    "awesome-phonenumber": "latest",
+    "didyoumean": "latest",
+    "similarity": "latest",
+    "ffmpeg-static": "latest",
+    "fluent-ffmpeg": "latest",
+    "mime-types": "latest"
+  }
+}
