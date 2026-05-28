@@ -23,8 +23,12 @@ async function startBot() {
 
 await checkUpdate()
 
-const { state, saveCreds } =
-await useMultiFileAuthState("./sessions/main")
+const {
+state,
+saveCreds
+} = await useMultiFileAuthState(
+"./sessions/main"
+)
 
 const { version } =
 await fetchLatestBaileysVersion()
@@ -61,93 +65,53 @@ sock.ev.on(
 saveCreds
 )
 
-let pairingCode = false
+/*
+========================================
+PAIR CODE
+========================================
+*/
 
-sock.ev.on(
-"connection.update",
-async(update) => {
+if(
+!sock.authState.creds
+.registered
+){
 
-const {
-connection,
-lastDisconnect
-} = update
+const number =
+config.botNumber
+.replace(/[^0-9]/g,"")
 
-const credsPath =
-"./sessions/main/creds.json"
+console.log(`
+╔════════════════════════════╗
+║    GENERATING PAIR CODE    ║
+╚════════════════════════════╝
+`)
 
-if (
-!fs.existsSync(credsPath) &&
-!pairingCode
-) {
+setTimeout(async()=>{
 
-pairingCode = true
-
-try {
+try{
 
 const code =
 await sock.requestPairingCode(
-config.pairNumber
+number
 )
 
 console.log(`
-╭───────────────────╮
-│
-│ PAIR CODE
-│
-│ ${code}
-│
-╰───────────────────╯
+╔════════════════════════════╗
+║      €м𝐨Ⓝ PAIR CODE       ║
+╠════════════════════════════╣
+║        ${code}
+╚════════════════════════════╝
 `)
 
-} catch (e) {
+}catch(err){
 
-console.log(e)
-
-}
+console.log(err)
 
 }
 
-if (
-connection === "close"
-) {
-
-const reason =
-lastDisconnect?.error
-?.output?.statusCode
-
-if (
-reason !==
-DisconnectReason.loggedOut
-) {
-
-console.log(
-"[ RECONNECTING ]"
-)
-
-startBot()
+},3000)
 
 }
-
-}
-
-if (
-connection === "open"
-) {
-
-console.log(`
-╭───────────────────╮
-│
-│ ${config.botName}
-│
-│ CONNECTED
-│
-╰───────────────────╯
-`)
-
-}
-
-}
-)
 
 sock.ev.on(
 "messages.upsert",
@@ -248,6 +212,57 @@ call.from,
 } catch (e) {
 
 console.log(e)
+
+}
+
+}
+)
+
+sock.ev.on(
+"connection.update",
+async(update) => {
+
+const {
+connection,
+lastDisconnect
+} = update
+
+if (
+connection === "close"
+) {
+
+const reason =
+lastDisconnect?.error
+?.output?.statusCode
+
+if (
+reason !==
+DisconnectReason.loggedOut
+) {
+
+console.log(
+"[ RECONNECTING ]"
+)
+
+startBot()
+
+}
+
+}
+
+if (
+connection === "open"
+) {
+
+console.log(`
+╔════════════════════════════╗
+║
+║   ${config.botName}
+║
+║      CONNECTED
+║
+╚════════════════════════════╝
+`)
 
 }
 
