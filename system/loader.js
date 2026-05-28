@@ -7,6 +7,10 @@ global.plugins = {}
 
 const base = path.join(__dirname, "../plugins")
 
+if (!fs.existsSync(base)) {
+fs.mkdirSync(base, { recursive: true })
+}
+
 const folders = fs.readdirSync(base)
 
 for (const folder of folders) {
@@ -30,8 +34,26 @@ delete require.cache[require.resolve(pluginPath)]
 const plugin = require(pluginPath)
 
 if (plugin.name) {
+
 global.plugins[plugin.name] = plugin
+
+console.log(`[PLUGIN LOADED] ${plugin.name}`)
+
 }
 
 } catch (e) {
-module.exports = { loadPlugins }
+
+console.log(`[PLUGIN ERROR] ${file}`)
+console.log(e)
+
+}
+
+}
+
+}
+
+}
+
+module.exports = {
+loadPlugins
+}
