@@ -11,7 +11,6 @@ fetchLatestBaileysVersion
 const pino = require("pino")
 const fs = require("fs")
 const path = require("path")
-const readline = require("readline")
 
 const config = require("./config.json")
 
@@ -19,11 +18,6 @@ const { loadPlugins } = require("./system/loader")
 const { handleMessage } = require("./system/handler")
 const { watchPlugins } = require("./system/watcher")
 const { checkUpdate } = require("./system/updater")
-
-const rl = readline.createInterface({
-input: process.stdin,
-output: process.stdout
-})
 
 async function startBot() {
 
@@ -62,24 +56,29 @@ await loadPlugins()
 
 watchPlugins(loadPlugins)
 
-if (
-!fs.existsSync(
-"./sessions/main/creds.json"
-)
-) {
+setTimeout(async() => {
 
-rl.question(
-"ENTER YOUR NUMBER : ",
-async(number) => {
+const credsPath =
+"./sessions/main/creds.json"
+
+if (!fs.existsSync(credsPath)) {
 
 try {
 
 const code =
-await sock.requestPairingCode(number)
-
-console.log(
-`\nPAIR CODE : ${code}\n`
+await sock.requestPairingCode(
+config.pairNumber
 )
+
+console.log(`
+╭───────────────────╮
+│
+│ PAIR CODE
+│
+│ ${code}
+│
+╰───────────────────╯
+`)
 
 } catch (e) {
 
@@ -88,9 +87,8 @@ console.log(e)
 }
 
 }
-)
 
-}
+}, 4000)
 
 sock.ev.on(
 "creds.update",
